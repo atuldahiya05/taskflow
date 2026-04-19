@@ -702,14 +702,14 @@ async function deleteTodo(id) {
 
 async function loadReqDropdown() {
   try {
-    const others = await api("GET", "/auth/colleagues");
-    if (!others.length) {
-      $("req-to-sel").innerHTML = '<option value="">No other employees found</option>';
+    const others = await api('GET', '/auth/colleagues');
+    if (!others || !others.length) {
+      $('req-to-sel').innerHTML = '<option value="">No other employees found</option>';
       return;
     }
-    $("req-to-sel").innerHTML = others.map(e => `<option value="${e._id}">${e.name}</option>`).join("");
+    $('req-to-sel').innerHTML = others.map(e => '<option value="' + e._id + '">' + e.name + '</option>').join('');
   } catch (e) {
-    toast("Could not load employee list", false);
+    toast('Could not load employee list', false);
   }
 }
 
