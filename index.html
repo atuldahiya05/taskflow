@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TaskFlow Manager</title>
+<style>
+  /* ── Reset & Base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; color: #1a1a2e; min-height: 100vh; }
+
+  /* ── Login ── */
+  .login-page { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 1rem; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%); }
+  .login-box { background: #fff; border-radius: 16px; padding: 2.5rem; width: 100%; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+  .logo { font-size: 26px; font-weight: 700; color: #0f3460; margin-bottom: 8px; letter-spacing: -0.5px; }
+  .logo span { color: #e94560; }
+  .login-sub { color: #888; font-size: 14px; margin-bottom: 2rem; }
+  .role-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1.5rem; }
+  .role-btn { padding: 14px 10px; border: 2px solid #e2e8f0; border-radius: 10px; background: #f8fafc; cursor: pointer; font-size: 14px; font-weight: 600; color: #64748b; text-align: center; transition: all .15s; }
+  .role-btn .icon { font-size: 24px; display: block; margin-bottom: 4px; }
+  .role-btn.active { border-color: #0f3460; background: #eff6ff; color: #0f3460; }
+  .field { margin-bottom: 1rem; }
+  .field label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 5px; }
+  .field input, .field select { width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 14px; background: #f8fafc; color: #1a1a2e; transition: border .15s; }
+  .field input:focus, .field select:focus { outline: none; border-color: #0f3460; background: #fff; }
+  .btn-login { width: 100%; padding: 12px; background: #0f3460; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background .15s; }
+  .btn-login:hover { background: #1a4a8a; }
+  .error-msg { background: #fef2f2; border: 1px solid #fca5a5; color: #b91c1c; padding: 10px 12px; border-radius: 8px; font-size: 13px; margin-bottom: 1rem; display: none; }
+
+  /* ── Dashboard Shell ── */
+  .dashboard { display: none; flex-direction: column; min-height: 100vh; }
+  .dashboard.active { display: flex; }
+  .topbar { background: #0f3460; color: #fff; padding: 0 1.5rem; height: 56px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .brand { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+  .brand span { color: #e94560; }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .user-pill { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; background: #e94560; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0; }
+  .btn-logout { padding: 5px 12px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; color: #fff; font-size: 12px; cursor: pointer; }
+  .btn-logout:hover { background: rgba(255,255,255,0.2); }
+  .body-layout { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── Sidebar ── */
+  .sidebar { width: 200px; background: #fff; border-right: 1px solid #e2e8f0; padding: 1rem 0; flex-shrink: 0; overflow-y: auto; }
+  .nav-item { display: flex; align-items: center; gap: 8px; padding: 10px 16px; font-size: 13px; font-weight: 500; color: #64748b; cursor: pointer; border-left: 3px solid transparent; transition: all .12s; }
+  .nav-item:hover { background: #f1f5f9; color: #1a1a2e; }
+  .nav-item.active { color: #0f3460; background: #eff6ff; border-left-color: #0f3460; font-weight: 600; }
+  .nav-icon { font-size: 15px; }
+
+  /* ── Content ── */
+  .content-area { flex: 1; padding: 1.5rem; overflow-y: auto; background: #f0f2f5; }
+  .page { display: none; }
+  .page.active { display: block; }
+  .page-title { font-size: 20px; font-weight: 700; color: #0f3460; margin-bottom: 1.25rem; }
+
+  /* ── Stat Cards ── */
+  .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+  .stat-box { background: #fff; border-radius: 12px; padding: 1rem 1.25rem; border: 1px solid #e2e8f0; }
+  .stat-num { font-size: 28px; font-weight: 700; color: #0f3460; }
+  .stat-label { font-size: 12px; color: #94a3b8; margin-top: 2px; font-weight: 500; }
+
+  /* ── Task Cards ── */
+  .task-card { background: #fff; border-radius: 10px; border: 1px solid #e2e8f0; padding: 1rem 1.25rem; margin-bottom: 10px; transition: box-shadow .15s; }
+  .task-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+  .tc-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+  .tc-title { font-size: 14px; font-weight: 600; color: #1a1a2e; }
+  .tc-meta { font-size: 12px; color: #94a3b8; display: flex; gap: 12px; flex-wrap: wrap; }
+  .tc-desc { font-size: 12px; color: #64748b; margin-top: 6px; line-height: 1.5; }
+  .tc-actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+  .badge { display: inline-block; padding: 3px 9px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+  .b-pending   { background: #fef9c3; color: #854d0e; }
+  .b-completed { background: #dcfce7; color: #166534; }
+  .b-deleted   { background: #fee2e2; color: #991b1b; }
+  .b-request   { background: #dbeafe; color: #1e40af; }
+  .b-accepted  { background: #dcfce7; color: #166534; }
+  .b-rejected  { background: #fce7f3; color: #9d174d; }
+
+  /* ── Buttons ── */
+  .btn { padding: 5px 12px; font-size: 12px; font-weight: 600; border-radius: 6px; border: 1.5px solid; cursor: pointer; transition: all .12s; background: #fff; }
+  .btn:hover { opacity: 0.85; }
+  .btn-green  { border-color: #16a34a; color: #16a34a; }
+  .btn-green:hover  { background: #dcfce7; }
+  .btn-red    { border-color: #dc2626; color: #dc2626; }
+  .btn-red:hover    { background: #fee2e2; }
+  .btn-blue   { border-color: #2563eb; color: #2563eb; }
+  .btn-blue:hover   { background: #dbeafe; }
+  .btn-pink   { border-color: #db2777; color: #db2777; }
+  .btn-pink:hover   { background: #fce7f3; }
+  .btn-primary { background: #0f3460; color: #fff; border-color: #0f3460; padding: 9px 20px; font-size: 13px; border-radius: 8px; }
+  .btn-primary:hover { background: #1a4a8a; }
+
+  /* ── Forms ── */
+  .form-card { background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 1.5rem; margin-bottom: 1rem; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-grid .full { grid-column: 1 / -1; }
+  .fg { display: flex; flex-direction: column; gap: 5px; }
+  .fg label { font-size: 12px; font-weight: 600; color: #374151; }
+  .fg input, .fg select, .fg textarea { padding: 8px 10px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 13px; background: #f8fafc; color: #1a1a2e; font-family: inherit; }
+  .fg input:focus, .fg select:focus, .fg textarea:focus { outline: none; border-color: #0f3460; background: #fff; }
+  .fg textarea { resize: vertical; min-height: 72px; }
+  .form-submit { margin-top: 14px; }
+  .empty { text-align: center; padding: 3rem 1rem; color: #94a3b8; font-size: 14px; }
+  .empty .empty-icon { font-size: 36px; margin-bottom: 8px; }
+
+  /* ── Employee List ── */
+  .emp-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+  .emp-row:last-child { border-bottom: none; }
+  .emp-left { display: flex; align-items: center; gap: 10px; }
+  .emp-name { font-size: 14px; font-weight: 600; color: #1a1a2e; }
+  .emp-email { font-size: 12px; color: #94a3b8; }
+
+  /* ── Filter bar ── */
+  .filter-bar { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+  .filter-btn { padding: 5px 14px; border: 1.5px solid #e2e8f0; border-radius: 20px; background: #fff; font-size: 12px; font-weight: 600; color: #64748b; cursor: pointer; }
+  .filter-btn.active { background: #0f3460; color: #fff; border-color: #0f3460; }
+
+  /* ── Toast ── */
+  .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #0f3460; color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 13px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity .3s; z-index: 9999; }
+  .toast.show { opacity: 1; }
+
+  /* ── Loading overlay ── */
+  .loading { position: fixed; inset: 0; background: rgba(15,52,96,0.7); display: flex; align-items: center; justify-content: center; z-index: 9998; display: none; }
+  .spinner { width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Section label ── */
+  .section-label { font-size: 13px; font-weight: 600; color: #64748b; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  @media (max-width: 640px) {
+    .sidebar { width: 160px; }
+    .form-grid { grid-template-columns: 1fr; }
+    .form-grid .full { grid-column: 1; }
+    .stats-row { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div class="loading" id="loading"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+
+<!-- ═══════════════════ LOGIN PAGE ═══════════════════ -->
+<div id="login-page" class="login-page">
+  <div class="login-box">
+    <div class="logo">Task<span>Flow</span></div>
+    <p class="login-sub">Team Task Management System</p>
+    <div class="error-msg" id="login-error"></div>
+    <div class="role-row">
+      <div class="role-btn" id="r-manager" onclick="pickRole('manager')">
+        <span class="icon">👔</span>Manager
+      </div>
+      <div class="role-btn" id="r-employee" onclick="pickRole('employee')">
+        <span class="icon">👤</span>Employee
+      </div>
+    </div>
+    <div class="field">
+      <label>Email Address</label>
+      <input type="email" id="login-email" placeholder="you@company.com" />
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="login-password" placeholder="••••••••" />
+    </div>
+    <button class="btn-login" onclick="doLogin()">Sign In</button>
+    <p style="font-size:12px;color:#94a3b8;margin-top:1rem;text-align:center">
+      New employee? Ask your manager to add your account.
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════════ MANAGER DASHBOARD ═══════════════════ -->
+<div class="dashboard" id="mgr-dash">
+  <div class="topbar">
+    <div class="brand">Task<span>Flow</span></div>
+    <div class="topbar-right">
+      <div class="user-pill">
+        <div class="avatar" id="mgr-av">MG</div>
+        <span id="mgr-uname" style="font-size:13px"></span>
+        <span style="font-size:11px;background:rgba(233,69,96,0.2);color:#e94560;padding:2px 8px;border-radius:10px;font-weight:600">Manager</span>
+      </div>
+      <button class="btn-logout" onclick="logout()">Logout</button>
+    </div>
+  </div>
+  <div class="body-layout">
+    <div class="sidebar">
+      <div class="nav-item active" data-page="mgr-overview" onclick="mgrNav(this,'mgr-overview')"><span class="nav-icon">📊</span>Dashboard</div>
+      <div class="nav-item" data-page="mgr-assign"   onclick="mgrNav(this,'mgr-assign')"><span class="nav-icon">📋</span>Assign Task</div>
+      <div class="nav-item" data-page="mgr-employees" onclick="mgrNav(this,'mgr-employees')"><span class="nav-icon">👥</span>Employees</div>
+      <div class="nav-item" data-page="mgr-monitor"  onclick="mgrNav(this,'mgr-monitor')"><span class="nav-icon">🔍</span>All Tasks</div>
+    </div>
+    <div class="content-area">
+
+      <!-- Overview -->
+      <div class="page active" id="mgr-overview">
+        <div class="page-title">Dashboard Overview</div>
+        <div class="stats-row" id="mgr-stats"></div>
+        <div class="section-label">Recent Tasks</div>
+        <div id="mgr-recent-tasks"></div>
+      </div>
+
+      <!-- Assign Task -->
+      <div class="page" id="mgr-assign">
+        <div class="page-title">Assign Task to Employee</div>
+        <div class="form-card">
+          <div class="form-grid">
+            <div class="fg">
+              <label>Select Employee</label>
+              <select id="a-emp"></select>
+            </div>
+            <div class="fg">
+              <label>Deadline</label>
+              <input type="date" id="a-deadline" />
+            </div>
+            <div class="fg full">
+              <label>Task Title</label>
+              <input type="text" id="a-title" placeholder="Enter task title..." />
+            </div>
+            <div class="fg full">
+              <label>Description</label>
+              <textarea id="a-desc" placeholder="Describe the task in detail..."></textarea>
+            </div>
+          </div>
+          <div class="form-submit">
+            <button class="btn btn-primary" onclick="assignTask()">Assign Task</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Employees -->
+      <div class="page" id="mgr-employees">
+        <div class="page-title">Manage Employees</div>
+        <div class="form-card" style="margin-bottom:1.25rem">
+          <div class="section-label" style="margin-bottom:12px">Add New Employee</div>
+          <div class="form-grid">
+            <div class="fg">
+              <label>Full Name</label>
+              <input type="text" id="ne-name" placeholder="Full name" />
+            </div>
+            <div class="fg">
+              <label>Email</label>
+              <input type="email" id="ne-email" placeholder="email@company.com" />
+            </div>
+            <div class="fg">
+              <label>Password</label>
+              <input type="password" id="ne-pass" placeholder="Set password" />
+            </div>
+          </div>
+          <div class="form-submit">
+            <button class="btn btn-primary" onclick="addEmployee()">Add Employee</button>
+          </div>
+        </div>
+        <div class="form-card">
+          <div class="section-label" style="margin-bottom:10px">Employee List</div>
+          <div id="emp-list-container"></div>
+        </div>
+      </div>
+
+      <!-- All Tasks -->
+      <div class="page" id="mgr-monitor">
+        <div class="page-title">All Tasks</div>
+        <div class="filter-bar">
+          <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+          <button class="filter-btn" onclick="setFilter('pending',this)">Pending</button>
+          <button class="filter-btn" onclick="setFilter('completed',this)">Completed</button>
+          <button class="filter-btn" onclick="setFilter('deleted',this)">Deleted</button>
+        </div>
+        <div id="all-tasks-container"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ EMPLOYEE DASHBOARD ═══════════════════ -->
+<div class="dashboard" id="emp-dash">
+  <div class="topbar">
+    <div class="brand">Task<span>Flow</span></div>
+    <div class="topbar-right">
+      <div class="user-pill">
+        <div class="avatar" id="emp-av">EM</div>
+        <span id="emp-uname" style="font-size:13px"></span>
+        <span style="font-size:11px;background:rgba(233,69,96,0.2);color:#e94560;padding:2px 8px;border-radius:10px;font-weight:600">Employee</span>
+      </div>
+      <button class="btn-logout" onclick="logout()">Logout</button>
+    </div>
+  </div>
+  <div class="body-layout">
+    <div class="sidebar">
+      <div class="nav-item active" onclick="empNav(this,'emp-mytasks')"><span class="nav-icon">📌</span>My Tasks</div>
+      <div class="nav-item" onclick="empNav(this,'emp-todo')"><span class="nav-icon">✅</span>Personal To-Do</div>
+      <div class="nav-item" onclick="empNav(this,'emp-sendreq')"><span class="nav-icon">📤</span>Send Request</div>
+      <div class="nav-item" onclick="empNav(this,'emp-received')"><span class="nav-icon">📥</span>Received</div>
+      <div class="nav-item" onclick="empNav(this,'emp-completed')"><span class="nav-icon">🏆</span>Completed</div>
+    </div>
+    <div class="content-area">
+
+      <!-- My Tasks -->
+      <div class="page active" id="emp-mytasks">
+        <div class="page-title">My Tasks</div>
+        <div id="my-tasks-container"></div>
+      </div>
+
+      <!-- Personal To-Do -->
+      <div class="page" id="emp-todo">
+        <div class="page-title">Personal To-Do</div>
+        <div class="form-card" style="margin-bottom:1rem">
+          <div style="display:flex;gap:8px">
+            <input type="text" id="todo-text" placeholder="Add a personal task..." style="flex:1;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;background:#f8fafc;color:#1a1a2e" />
+            <button class="btn btn-primary" style="padding:8px 16px" onclick="addTodo()">Add</button>
+          </div>
+        </div>
+        <div id="todo-container"></div>
+      </div>
+
+      <!-- Send Request -->
+      <div class="page" id="emp-sendreq">
+        <div class="page-title">Send Task Request</div>
+        <div class="form-card">
+          <div class="form-grid">
+            <div class="fg">
+              <label>Send To</label>
+              <select id="req-to-sel"></select>
+            </div>
+            <div class="fg">
+              <label>Deadline</label>
+              <input type="date" id="req-deadline" />
+            </div>
+            <div class="fg full">
+              <label>Task Title</label>
+              <input type="text" id="req-title" placeholder="Task title..." />
+            </div>
+            <div class="fg full">
+              <label>Description</label>
+              <textarea id="req-desc" placeholder="Describe what you need..."></textarea>
+            </div>
+          </div>
+          <div class="form-submit">
+            <button class="btn btn-primary" onclick="sendRequest()">Send Request</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Received Requests -->
+      <div class="page" id="emp-received">
+        <div class="page-title">Received Requests</div>
+        <div id="received-container"></div>
+      </div>
+
+      <!-- Completed -->
+      <div class="page" id="emp-completed">
+        <div class="page-title">Completed Tasks</div>
+        <div id="completed-container"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Config ──────────────────────────────────────────────────
+const API = 'https://taskflow-rho-gilt.vercel.app/api'; // Change to your Vercel URL in production
+
+let token = localStorage.getItem('tf_token') || '';
+let currentUser = JSON.parse(localStorage.getItem('tf_user') || 'null');
+let allTasksCache = [];
+let currentFilter = 'all';
+
+// ── Helpers ─────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const show = id => $(id).style.display = 'flex';
+const hide = id => $(id).style.display = 'none';
+
+function showLoading() { $('loading').style.display = 'flex'; }
+function hideLoading() { $('loading').style.display = 'none'; }
+
+function toast(msg, ok = true) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.style.background = ok ? '#0f3460' : '#dc2626';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+async function api(method, path, body) {
+  const res = await fetch(API + path, {
+    method,
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || 'Request failed');
+  return data;
+}
+
+function initials(name) {
+  return (name || '').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+}
+
+function fmtDate(d) {
+  if (!d) return 'No deadline';
+  return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+// ── Role picker ─────────────────────────────────────────────
+let selectedRole = '';
+function pickRole(r) {
+  selectedRole = r;
+  $('r-manager').classList.toggle('active', r === 'manager');
+  $('r-employee').classList.toggle('active', r === 'employee');
+}
+
+// ── Login ────────────────────────────────────────────────────
+async function doLogin() {
+  const email = $('login-email').value.trim();
+  const password = $('login-password').value;
+  $('login-error').style.display = 'none';
+  if (!email || !password) { showErr('Please enter email and password'); return; }
+  try {
+    showLoading();
+    const data = await api('POST', '/auth/login', { email, password });
+    token = data.token;
+    currentUser = data;
+    localStorage.setItem('tf_token', token);
+    localStorage.setItem('tf_user', JSON.stringify(data));
+    hideLoading();
+    enterDashboard();
+  } catch (e) {
+    hideLoading();
+    showErr(e.message);
+  }
+}
+
+function showErr(msg) {
+  const el = $('login-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+// ── Enter dashboard ──────────────────────────────────────────
+function enterDashboard() {
+  $('login-page').style.display = 'none';
+  if (currentUser.role === 'manager') {
+    $('mgr-dash').classList.add('active');
+    $('mgr-av').textContent = initials(currentUser.name);
+    $('mgr-uname').textContent = currentUser.name;
+    loadMgrDashboard();
+  } else {
+    $('emp-dash').classList.add('active');
+    $('emp-av').textContent = initials(currentUser.name);
+    $('emp-uname').textContent = currentUser.name;
+    loadEmpDashboard();
+  }
+}
+
+function logout() {
+  token = ''; currentUser = null;
+  localStorage.removeItem('tf_token');
+  localStorage.removeItem('tf_user');
+  $('mgr-dash').classList.remove('active');
+  $('emp-dash').classList.remove('active');
+  $('login-page').style.display = 'flex';
+  $('login-email').value = '';
+  $('login-password').value = '';
+  selectedRole = '';
+  $('r-manager').classList.remove('active');
+  $('r-employee').classList.remove('active');
+}
+
+// ── Navigation ───────────────────────────────────────────────
+function mgrNav(el, pageId) {
+  document.querySelectorAll('#mgr-dash .nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('#mgr-dash .page').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  $(pageId).classList.add('active');
+  if (pageId === 'mgr-overview') loadMgrOverview();
+  if (pageId === 'mgr-employees') loadEmployees();
+  if (pageId === 'mgr-monitor') loadAllTasks();
+  if (pageId === 'mgr-assign') loadAssignDropdown();
+}
+
+function empNav(el, pageId) {
+  document.querySelectorAll('#emp-dash .nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('#emp-dash .page').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  $(pageId).classList.add('active');
+  if (pageId === 'emp-mytasks') loadMyTasks();
+  if (pageId === 'emp-todo') loadTodos();
+  if (pageId === 'emp-received') loadReceived();
+  if (pageId === 'emp-completed') loadCompleted();
+  if (pageId === 'emp-sendreq') loadReqDropdown();
+}
+
+// ── MANAGER FUNCTIONS ────────────────────────────────────────
+async function loadMgrDashboard() {
+  loadMgrOverview();
+  loadAssignDropdown();
+  loadEmployees();
+}
+
+async function loadMgrOverview() {
+  try {
+    const tasks = await api('GET', '/tasks');
+    allTasksCache = tasks;
+    const pending   = tasks.filter(t => t.status === 'pending').length;
+    const completed = tasks.filter(t => t.status === 'completed').length;
+    const deleted   = tasks.filter(t => t.status === 'deleted').length;
+    $('mgr-stats').innerHTML = `
+      <div class="stat-box"><div class="stat-num">${tasks.length}</div><div class="stat-label">Total Tasks</div></div>
+      <div class="stat-box"><div class="stat-num" style="color:#d97706">${pending}</div><div class="stat-label">Pending</div></div>
+      <div class="stat-box"><div class="stat-num" style="color:#16a34a">${completed}</div><div class="stat-label">Completed</div></div>
+      <div class="stat-box"><div class="stat-num" style="color:#dc2626">${deleted}</div><div class="stat-label">Deleted</div></div>
+    `;
+    const recent = tasks.slice(0, 5);
+    $('mgr-recent-tasks').innerHTML = recent.length
+      ? recent.map(t => renderTaskCard(t, 'manager')).join('')
+      : emptyState('No tasks assigned yet');
+  } catch (e) { toast(e.message, false); }
+}
+
+async function loadAssignDropdown() {
+  try {
+    const emps = await api('GET', '/auth/employees');
+    $('a-emp').innerHTML = emps.map(e => `<option value="${e._id}">${e.name}</option>`).join('');
+  } catch (e) {}
+}
+
+async function assignTask() {
+  const assignedTo = $('a-emp').value;
+  const title      = $('a-title').value.trim();
+  const description = $('a-desc').value.trim();
+  const deadline   = $('a-deadline').value;
+  if (!title) { toast('Please enter a task title', false); return; }
+  try {
+    showLoading();
+    await api('POST', '/tasks', { title, description, assignedTo, deadline });
+    hideLoading();
+    $('a-title').value = '';
+    $('a-desc').value = '';
+    $('a-deadline').value = '';
+    toast('Task assigned successfully!');
+    loadMgrOverview();
+  } catch (e) { hideLoading(); toast(e.message, false); }
+}
+
+async function loadEmployees() {
+  try {
+    const emps = await api('GET', '/auth/employees');
+    const el = $('emp-list-container');
+    el.innerHTML = emps.length ? emps.map(e => `
+      <div class="emp-row">
+        <div class="emp-left">
+          <div class="avatar">${initials(e.name)}</div>
+          <div><div class="emp-name">${e.name}</div><div class="emp-email">${e.email}</div></div>
+        </div>
+        <button class="btn btn-red" onclick="removeEmployee('${e._id}')">Remove</button>
+      </div>
+    `).join('') : emptyState('No employees yet');
+  } catch (e) { toast(e.message, false); }
+}
+
+async function addEmployee() {
+  const name     = $('ne-name').value.trim();
+  const email    = $('ne-email').value.trim();
+  const password = $('ne-pass').value;
+  if (!name || !email || !password) { toast('Please fill all fields', false); return; }
+  try {
+    showLoading();
+    await api('POST', '/auth/register', { name, email, password, role: 'employee' });
+    hideLoading();
+    $('ne-name').value = '';
+    $('ne-email').value = '';
+    $('ne-pass').value = '';
+    toast('Employee added!');
+    loadEmployees();
+    loadAssignDropdown();
+  } catch (e) { hideLoading(); toast(e.message, false); }
+}
+
+async function removeEmployee(id) {
+  if (!confirm('Remove this employee?')) return;
+  try {
+    await api('DELETE', '/auth/employees/' + id);
+    toast('Employee removed');
+    loadEmployees();
+  } catch (e) { toast(e.message, false); }
+}
+
+async function loadAllTasks() {
+  try {
+    const tasks = await api('GET', '/tasks');
+    allTasksCache = tasks;
+    renderFilteredTasks();
+  } catch (e) { toast(e.message, false); }
+}
+
+function setFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderFilteredTasks();
+}
+
+function renderFilteredTasks() {
+  const filtered = currentFilter === 'all' ? allTasksCache : allTasksCache.filter(t => t.status === currentFilter);
+  $('all-tasks-container').innerHTML = filtered.length
+    ? filtered.map(t => renderTaskCard(t, 'manager')).join('')
+    : emptyState('No tasks found');
+}
+
+// ── EMPLOYEE FUNCTIONS ───────────────────────────────────────
+async function loadEmpDashboard() {
+  loadMyTasks();
+  loadTodos();
+  loadReqDropdown();
+}
+
+async function loadMyTasks() {
+  try {
+    const tasks = await api('GET', '/tasks');
+    const active = tasks.filter(t => t.status === 'pending');
+    $('my-tasks-container').innerHTML = active.length
+      ? active.map(t => renderTaskCard(t, 'employee')).join('')
+      : emptyState('No active tasks assigned to you');
+  } catch (e) { toast(e.message, false); }
+}
+
+async function completeTask(id) {
+  try {
+    await api('PATCH', '/tasks/' + id + '/complete');
+    toast('Task marked as completed!');
+    loadMyTasks();
+    loadCompleted();
+  } catch (e) { toast(e.message, false); }
+}
+
+async function deleteTask(id) {
+  if (!confirm('Delete this task?')) return;
+  try {
+    await api('PATCH', '/tasks/' + id + '/delete');
+    toast('Task deleted');
+    loadMyTasks();
+  } catch (e) { toast(e.message, false); }
+}
+
+async function loadCompleted() {
+  try {
+    const tasks = await api('GET', '/tasks');
+    const done = tasks.filter(t => t.status === 'completed');
+    $('completed-container').innerHTML = done.length
+      ? done.map(t => renderTaskCard(t, 'completed-view')).join('')
+      : emptyState('No completed tasks yet');
+  } catch (e) { toast(e.message, false); }
+}
+
+async function loadTodos() {
+  try {
+    const todos = await api('GET', '/todos');
+    $('todo-container').innerHTML = todos.length
+      ? todos.map(td => `
+        <div class="task-card" style="${td.done ? 'opacity:.6' : ''}">
+          <div class="tc-header">
+            <span class="tc-title" style="${td.done ? 'text-decoration:line-through' : ''}">${td.text}</span>
+            <span class="badge ${td.done ? 'b-completed' : 'b-pending'}">${td.done ? 'done' : 'pending'}</span>
+          </div>
+          <div class="tc-actions">
+            ${!td.done ? `<button class="btn btn-green" onclick="doneTodo('${td._id}')">Mark Done</button>` : ''}
+            <button class="btn btn-red" onclick="deleteTodo('${td._id}')">Delete</button>
+          </div>
+        </div>
+      `).join('')
+      : emptyState('No personal tasks. Add one above!');
+  } catch (e) { toast(e.message, false); }
+}
+
+async function addTodo() {
+  const text = $('todo-text').value.trim();
+  if (!text) return;
+  try {
+    await api('POST', '/todos', { text });
+    $('todo-text').value = '';
+    toast('Task added!');
+    loadTodos();
+  } catch (e) { toast(e.message, false); }
+}
+
+async function doneTodo(id) {
+  try {
+    await api('PATCH', '/todos/' + id, { done: true });
+    toast('Marked as done!');
+    loadTodos();
+  } catch (e) { toast(e.message, false); }
+}
+
+async function deleteTodo(id) {
+  try {
+    await api('DELETE', '/todos/' + id);
+    toast('Todo deleted');
+    loadTodos();
+  } catch (e) { toast(e.message, false); }
+}
+
+async function loadReqDropdown() {
+  try {
+    const emps = await api('GET', '/auth/employees');
+    const others = emps.filter(e => e._id !== currentUser._id);
+    $('req-to-sel').innerHTML = others.map(e => `<option value="${e._id}">${e.name}</option>`).join('');
+  } catch (e) {}
+}
+
+async function sendRequest() {
+  const to          = $('req-to-sel').value;
+  const title       = $('req-title').value.trim();
+  const description = $('req-desc').value.trim();
+  const deadline    = $('req-deadline').value;
+  if (!title || !to) { toast('Please fill required fields', false); return; }
+  try {
+    showLoading();
+    await api('POST', '/requests', { title, description, to, deadline });
+    hideLoading();
+    $('req-title').value = '';
+    $('req-desc').value = '';
+    $('req-deadline').value = '';
+    toast('Request sent successfully!');
+  } catch (e) { hideLoading(); toast(e.message, false); }
+}
+
+async function loadReceived() {
+  try {
+    const reqs = await api('GET', '/requests/received');
+    $('received-container').innerHTML = reqs.length
+      ? reqs.map(r => `
+        <div class="task-card">
+          <div class="tc-header">
+            <span class="tc-title">${r.title}</span>
+            <span class="badge b-request">request</span>
+          </div>
+          <div class="tc-meta">
+            <span>From: ${r.from?.name || 'Unknown'}</span>
+            <span>Deadline: ${fmtDate(r.deadline)}</span>
+          </div>
+          ${r.description ? `<div class="tc-desc">${r.description}</div>` : ''}
+          <div class="tc-actions">
+            <button class="btn btn-green" onclick="handleReq('${r._id}','accept')">Accept</button>
+            <button class="btn btn-pink" onclick="handleReq('${r._id}','reject')">Reject</button>
+          </div>
+        </div>
+      `).join('')
+      : emptyState('No pending requests');
+  } catch (e) { toast(e.message, false); }
+}
+
+async function handleReq(id, action) {
+  try {
+    await api('PATCH', '/requests/' + id + '/' + action);
+    toast('Request ' + (action === 'accept' ? 'accepted — task added!' : 'rejected'));
+    loadReceived();
+    if (action === 'accept') loadMyTasks();
+  } catch (e) { toast(e.message, false); }
+}
+
+// ── Render helpers ───────────────────────────────────────────
+function renderTaskCard(t, view) {
+  const assignedTo   = t.assignedTo?.name  || '—';
+  const assignedBy   = t.assignedBy?.name  || '—';
+  const badgeClass   = { pending: 'b-pending', completed: 'b-completed', deleted: 'b-deleted' }[t.status] || 'b-pending';
+  const showActions  = view === 'employee' && t.status === 'pending';
+  const showMgrInfo  = view === 'manager';
+  return `
+    <div class="task-card">
+      <div class="tc-header">
+        <span class="tc-title">${t.title}</span>
+        <span class="badge ${badgeClass}">${t.status}</span>
+      </div>
+      <div class="tc-meta">
+        ${showMgrInfo ? `<span>Assigned to: ${assignedTo}</span>` : `<span>By: ${assignedBy}</span>`}
+        <span>Deadline: ${fmtDate(t.deadline)}</span>
+        <span>Type: ${t.type}</span>
+      </div>
+      ${t.description ? `<div class="tc-desc">${t.description}</div>` : ''}
+      ${showActions ? `
+        <div class="tc-actions">
+          <button class="btn btn-green" onclick="completeTask('${t._id}')">Mark Complete</button>
+          <button class="btn btn-red" onclick="deleteTask('${t._id}')">Delete</button>
+        </div>` : ''}
+    </div>
+  `;
+}
+
+function emptyState(msg) {
+  return `<div class="empty"><div class="empty-icon">📭</div>${msg}</div>`;
+}
+
+// ── Auto-login if token exists ───────────────────────────────
+if (token && currentUser) {
+  $('login-page').style.display = 'none';
+  enterDashboard();
+}
+</script>
+</body>
+</html>
