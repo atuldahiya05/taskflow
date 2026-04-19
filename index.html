@@ -701,11 +701,20 @@ async function deleteTodo(id) {
 }
 
 async function loadReqDropdown() {
+  $('req-to-sel').innerHTML = '<option value="">Loading...</option>';
   try {
-    const emps = await api('GET', '/auth/employees');
-    const others = emps.filter(e => e._id !== currentUser._id);
-    $('req-to-sel').innerHTML = others.map(e => `<option value="${e._id}">${e.name}</option>`).join('');
-  } catch (e) {}
+    const others = await api('GET', '/auth/colleagues');
+    if (!others || others.length === 0) {
+      $('req-to-sel').innerHTML = '<option value="">No other employees found</option>';
+      return;
+    }
+    $('req-to-sel').innerHTML = others.map(function(e) {
+      return '<option value="' + e._id + '">' + e.name + '</option>';
+    }).join('');
+  } catch (e) {
+    $('req-to-sel').innerHTML = '<option value="">Error loading employees</option>';
+    toast('Could not load employee list', false);
+  }
 }
 
 async function sendRequest() {
