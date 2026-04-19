@@ -47,6 +47,12 @@ router.get('/employees', protect, managerOnly, async (req, res) => {
   res.json(employees);
 });
 
+// GET /api/auth/colleagues  (any logged in employee — for send request dropdown)
+router.get('/colleagues', protect, async (req, res) => {
+  const employees = await User.find({ role: 'employee', _id: { $ne: req.user._id } }).select('-password');
+  res.json(employees);
+});
+
 // DELETE /api/auth/employees/:id  (manager only)
 router.delete('/employees/:id', protect, managerOnly, async (req, res) => {
   await User.findByIdAndDelete(req.params.id);
